@@ -1,41 +1,25 @@
-import { test, expect } from '@playwright/test';
+import { test } from '@playwright/test';
+import {MenuPage} from '../../src/pages/MenuPage';
+import {CartPage} from '../../src/pages/CartPage';
 
 test('Discounted Mocha added to the Cart after promo rejecting', async ({
   page,
 }) => {
-  await page.goto('https://coffee-cart.app/');
-  await page.getByTestId('Cappuccino').click();
-  await page.getByTestId('Espresso').click();
-  await page.getByTestId('Americano').click();
-  await expect(
-    page.getByText("It's your lucky day! Get an extra cup of Mocha for $4."),
-  ).toBeVisible();
-  await page.getByRole('button', { name: "Nah, I'll skip." }).click();
-  await page.getByLabel('Cart page').click();
-  await page.waitForURL('https://coffee-cart.app/cart');
+  const menuPage = new MenuPage(page);
+  const cartPage = new CartPage(page);
 
-  const cartLocator = page.getByRole('list').nth(1);
-  // Espresso
-  const espressoItem = cartLocator
-    .getByRole('listitem')
-    .filter({ hasText: 'Espresso' });
-  await expect(espressoItem).toBeVisible();
+  await menuPage.open();
+  await menuPage.addToCart('Cappuccino');
+  await menuPage.addToCart('Espresso');
+  await menuPage.addToCart('Americano');
+  await menuPage.assertPromoModalMessage();
+  await menuPage.declinePromo();
+  await menuPage.viewCart();
+  await cartPage.waitForLoading();
 
-  // (Discounted) Mocha
-  const mochaDiscountedItem = cartLocator
-    .getByRole('listitem')
-    .filter({ hasText: '(Discounted) Mocha' });
-  await expect(mochaDiscountedItem).toBeHidden();
-
-  // Cappuccino
-  const cappuccinoItem = cartLocator
-    .getByRole('listitem')
-    .filter({ hasText: 'Cappuccino' });
-  await expect(cappuccinoItem).toBeVisible();
-
-  // Americano
-  const americanoItem = cartLocator
-    .getByRole('listitem')
-    .filter({ hasText: 'Americano' });
-  await expect(americanoItem).toBeVisible();
+  await cartPage.assertItemInCart('Cappuccino', '$19.00 x 1', '$19.00');
+  await cartPage.assertItemInCart('Espresso', '$10.00 x 1', '$10.00');
+  await cartPage.assertItemInCart('Americano', '$7.00 x 1', '$7.00');
+  await cartPage.assertTotalCost('$36.00');
+  await cartPage.assertItemNotInCart('(Discounted) Mocha', '$4.00 x 1', '$4.00');
 });
